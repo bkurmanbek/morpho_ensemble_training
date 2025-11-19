@@ -278,11 +278,21 @@ def train_sozjasam_model(
     train_dataset = train_dataset.map(format_fn)
     val_dataset = val_dataset.map(format_fn)
     
+    # Detect device
+    if torch.cuda.is_available():
+        device_type = "cuda"
+        logger.info("Using CUDA")
+    elif torch.backends.mps.is_available():
+        device_type = "mps"
+        logger.info("Using Apple MPS")
+    else:
+        device_type = "cpu"
+        logger.info("Using CPU")
+
     # Load model
     logger.info(f"Loading model: {model_name}")
 
-    # Check if CUDA is available for device_map
-    if torch.cuda.is_available():
+    if device_type == "cuda":
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=torch.float16,
@@ -340,10 +350,11 @@ def train_sozjasam_model(
         save_total_limit=3,
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
-        fp16=False,
+        fp16=(device_type == "cuda"),
         bf16=False,
         gradient_checkpointing=False,
-        report_to="none"
+        report_to="none",
+        use_mps_device=(device_type == "mps")
     )
     
     # Tokenize

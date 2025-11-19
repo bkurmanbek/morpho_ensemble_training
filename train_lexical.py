@@ -102,25 +102,38 @@ def train_lexical_model(
     use_8bit: bool = True
 ):
     """Train the lexical model"""
-    
+
+    # Detect device
+    if torch.cuda.is_available():
+        device_type = "cuda"
+        logger.info("Using CUDA")
+    elif torch.backends.mps.is_available():
+        device_type = "mps"
+        logger.info("Using Apple MPS")
+        use_8bit = False  # bitsandbytes doesn't support MPS
+    else:
+        device_type = "cpu"
+        logger.info("Using CPU")
+        use_8bit = False
+
     logger.info("Building dataset...")
     builder = LexicalDatasetBuilder(data_path)
     dataset = builder.build_dataset()
-    
+
     # Split train/val
     dataset = dataset.train_test_split(test_size=0.1, seed=42)
     train_dataset = dataset['train']
     val_dataset = dataset['test']
-    
+
     logger.info(f"Train samples: {len(train_dataset)}")
     logger.info(f"Val samples: {len(val_dataset)}")
-    
+
     # Load tokenizer
     logger.info(f"Loading tokenizer: {model_name}")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
-    
+
     # Format dataset
     def format_fn(example):
         messages = [
@@ -130,35 +143,43 @@ def train_lexical_model(
         ]
         text = tokenizer.apply_chat_template(messages, tokenize=False)
         return {"text": text}
-    
+
     train_dataset = train_dataset.map(format_fn)
     val_dataset = val_dataset.map(format_fn)
-    
+
     # Load model
     logger.info(f"Loading model: {model_name}")
-    
-    if use_8bit:
-        # 8-bit quantization for 14B model
+
+    if use_8bit and device_type == "cuda":
+        # 8-bit quantization for CUDA only
         from transformers import BitsAndBytesConfig
-        
+
         bnb_config = BitsAndBytesConfig(
             load_in_8bit=True,
             bnb_8bit_compute_dtype=torch.float16
         )
-        
+
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             quantization_config=bnb_config,
             device_map="auto",
             trust_remote_code=True
         )
-        
+
         model = prepare_model_for_kbit_training(model)
+    elif device_type == "mps":
+        # Apple Silicon - load in float32 for stability, then move to MPS
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=torch.float32,
+            trust_remote_code=True,
+            low_cpu_mem_usage=True
+        )
     else:
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=torch.float16,
-            device_map="auto",
+            torch_dtype=torch.float16 if device_type == "cuda" else torch.float32,
+            device_map="auto" if device_type == "cuda" else None,
             trust_remote_code=True
         )
     
@@ -183,7 +204,7 @@ def train_lexical_model(
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
     
-    # Training arguments
+    # Training arguments - adjust based on device
     training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=num_epochs,
@@ -201,12 +222,14 @@ def train_lexical_model(
         save_total_limit=2,
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
-        fp16=True,  # Use fp16 instead of bf16 for better compatibility
+        fp16=(device_type == "cuda"),  # Only use fp16 on CUDA
+        bf16=False,
         gradient_checkpointing=True,
-        optim="paged_adamw_8bit" if use_8bit else "adamw_torch",
+        optim="paged_adamw_8bit" if (use_8bit and device_type == "cuda") else "adamw_torch",
         report_to="none",
         dataloader_pin_memory=False,  # Reduce memory usage
-        max_grad_norm=0.3
+        max_grad_norm=0.3,
+        use_mps_device=(device_type == "mps")
     )
     
     # Tokenize
