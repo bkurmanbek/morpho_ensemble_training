@@ -194,7 +194,7 @@ def train_lexical_model(
         lr_scheduler_type="cosine",
         warmup_ratio=0.05,
         logging_steps=10,
-        evaluation_strategy="steps",
+        eval_strategy="steps",
         eval_steps=100,
         save_strategy="steps",
         save_steps=200,
