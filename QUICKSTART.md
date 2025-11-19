@@ -39,7 +39,7 @@ from ensemble_model import create_ensemble
 # Create ensemble with your models
 ensemble = create_ensemble(
     grammar_data_path="all_kazakh_grammar_data.json",
-    pattern_db_path="pattern_database.json"
+    pattern_db_path="pattern_db.json"
 )
 
 # Load models (takes 2-3 minutes)
@@ -61,25 +61,22 @@ For testing, use smaller models:
 python train_sozjasam.py \
     --mode build_db \
     --data_path all_structured_kazakh_data.json \
-    --pattern_db_path pattern_database.json
+    --pattern_db_path pattern_db.json
 
-# Train light structure model (2-3 hours on RTX 4090)
-python train_structure.py \
+# Train lexical model (3-5 hours on RTX 4090)
+python train_lexical.py \
     --data_path all_structured_kazakh_data.json \
-    --grammar_path all_kazakh_grammar_data.json \
-    --output_dir ./models/structure_model \
-    --model_name Qwen/Qwen2.5-7B-Instruct \
-    --num_epochs 2 \
-    --batch_size 4 \
-    --use_qlora
-
-# Skip lexical model for now (use structure model's limited meanings)
+    --output_dir ./models/lexical_model \
+    --model_name Qwen/Qwen2.5-14B-Instruct \
+    --num_epochs 3 \
+    --batch_size 2 \
+    --use_8bit
 
 # Train sozjasam model (1-2 hours)
 python train_sozjasam.py \
     --mode train \
     --data_path all_structured_kazakh_data.json \
-    --pattern_db_path pattern_database.json \
+    --pattern_db_path pattern_db.json \
     --output_dir ./models/sozjasam_model \
     --model_name microsoft/Phi-3-mini-4k-instruct \
     --num_epochs 3
@@ -88,15 +85,12 @@ python train_sozjasam.py \
 ### Step 2: Test Your Models
 
 ```python
-from ensemble_model import MorphologyEnsemble
+from ensemble_model import create_ensemble
 
 # Create ensemble with your trained models
-ensemble = MorphologyEnsemble(
-    grammar_data=grammar_data,
-    structure_model_path="./models/structure_model",
-    lexical_model_path="./models/structure_model",  # Reuse structure model
-    sozjasam_model_path="./models/sozjasam_model",
-    pattern_db_path="pattern_database.json"
+ensemble = create_ensemble(
+    grammar_data_path="all_kazakh_grammar_data.json",
+    pattern_db_path="pattern_db.json"
 )
 
 ensemble.load_models()
@@ -123,7 +117,7 @@ bash train_all.sh
 ```python
 from ensemble_model import create_ensemble
 
-ensemble = create_ensemble("all_kazakh_grammar_data.json", "pattern_database.json")
+ensemble = create_ensemble("all_kazakh_grammar_data.json", "pattern_db.json")
 ensemble.load_models()
 
 # Analyze word
@@ -169,7 +163,10 @@ curl -X POST "http://localhost:8000/predict" \
 python evaluate.py \
     --test_data test_data.json \
     --grammar_data all_kazakh_grammar_data.json \
-    --pattern_db pattern_database.json
+    --pattern_db pattern_db.json \
+    --structure_model ./models/structure_model \
+    --lexical_model ./models/lexical_model \
+    --sozjasam_model ./models/sozjasam_model
 ```
 
 ## Troubleshooting
@@ -312,7 +309,7 @@ python deployment.py --port 8000
 bash train_all.sh
 
 # Evaluation
-python evaluate.py --test_data test.json
+python evaluate.py --test_data test.json --grammar_data all_kazakh_grammar_data.json --pattern_db pattern_db.json
 ```
 
 That's it! You're ready to use the Kazakh Morphology Ensemble.

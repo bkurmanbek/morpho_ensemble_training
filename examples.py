@@ -23,7 +23,7 @@ def example_1_single_prediction():
     # Create ensemble
     ensemble = create_ensemble(
         grammar_data_path="all_kazakh_grammar_data.json",
-        pattern_db_path="pattern_database.json"
+        pattern_db_path="pattern_db.json"
     )
     
     # Load models (this takes a few minutes)
@@ -53,7 +53,7 @@ def example_2_batch_prediction():
     # Create ensemble
     ensemble = create_ensemble(
         grammar_data_path="all_kazakh_grammar_data.json",
-        pattern_db_path="pattern_database.json"
+        pattern_db_path="pattern_db.json"
     )
     ensemble.load_models()
     
@@ -87,7 +87,7 @@ def example_3_with_validation():
     
     ensemble = create_ensemble(
         grammar_data_path="all_kazakh_grammar_data.json",
-        pattern_db_path="pattern_database.json"
+        pattern_db_path="pattern_db.json"
     )
     ensemble.load_models()
     
@@ -150,7 +150,7 @@ def example_4_compare_with_baseline():
     # Get ensemble prediction
     ensemble = create_ensemble(
         grammar_data_path="all_kazakh_grammar_data.json",
-        pattern_db_path="pattern_database.json"
+        pattern_db_path="pattern_db.json"
     )
     ensemble.load_models()
     
@@ -214,7 +214,7 @@ def example_5_process_dataset():
     # Create ensemble
     ensemble = create_ensemble(
         grammar_data_path="all_kazakh_grammar_data.json",
-        pattern_db_path="pattern_database.json"
+        pattern_db_path="pattern_db.json"
     )
     ensemble.load_models()
     
@@ -286,7 +286,7 @@ def example_6_individual_models():
     
     # Use only sozjasam model
     print("\n3. Sozjasam Model Only:")
-    sozjasam_model = SozjasamModel("./models/sozjasam_model", "pattern_database.json")
+    sozjasam_model = SozjasamModel("./models/sozjasam_model", "pattern_db.json")
     sozjasam_model.load_model()
     sozjasam_output = sozjasam_model.predict(word, pos_tag, context=structure_output)
     print(json.dumps(sozjasam_output, ensure_ascii=False, indent=2))

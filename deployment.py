@@ -77,7 +77,7 @@ async def startup_event():
     try:
         ensemble = create_ensemble(
             grammar_data_path="all_kazakh_grammar_data.json",
-            pattern_db_path="pattern_database.json"
+            pattern_db_path="pattern_db.json"
         )
         
         ensemble.load_models()
