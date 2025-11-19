@@ -187,24 +187,26 @@ def train_lexical_model(
     training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=num_epochs,
-        per_device_train_batch_size=batch_size,
-        per_device_eval_batch_size=batch_size,
-        gradient_accumulation_steps=8,
+        per_device_train_batch_size=1,  # Reduced for memory
+        per_device_eval_batch_size=1,
+        gradient_accumulation_steps=16,  # Compensate with more accumulation
         learning_rate=learning_rate,
         lr_scheduler_type="cosine",
         warmup_ratio=0.05,
         logging_steps=10,
         eval_strategy="steps",
-        eval_steps=100,
+        eval_steps=200,
         save_strategy="steps",
-        save_steps=200,
-        save_total_limit=3,
+        save_steps=400,
+        save_total_limit=2,
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
-        bf16=True,
+        fp16=True,  # Use fp16 instead of bf16 for better compatibility
         gradient_checkpointing=True,
         optim="paged_adamw_8bit" if use_8bit else "adamw_torch",
-        report_to="none"
+        report_to="none",
+        dataloader_pin_memory=False,  # Reduce memory usage
+        max_grad_norm=0.3
     )
     
     # Tokenize
@@ -212,7 +214,7 @@ def train_lexical_model(
         result = tokenizer(
             examples["text"],
             truncation=True,
-            max_length=1024,
+            max_length=512,  # Reduced for memory
             padding="max_length"
         )
         result["labels"] = result["input_ids"].copy()
